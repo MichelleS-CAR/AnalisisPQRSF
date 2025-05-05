@@ -1,151 +1,241 @@
-import streamlit as st
+!pip install streamlit pyngrok
+
 import pandas as pd
-import math
-from pathlib import Path
+import streamlit as st
+import matplotlib.pyplot as plt
+from pyngrok import ngrok
+from datetime import datetime
 
-# Set the title and favicon that appear in the Browser's tab bar.
-st.set_page_config(
-    page_title='GDP dashboard',
-    page_icon=':earth_americas:', # This is an emoji shortcode. Could be a URL too.
-)
+# Autenticación con ngrok usando tu token
+ngrok.set_auth_token('2vWBxc8IjhlMxb8YVemTfLMH2zG_88WwpR8oqahLn3eH5P1sV')
 
-# -----------------------------------------------------------------------------
-# Declare some useful functions.
+# Guardar el código de Streamlit en un archivo app.py
+app_code = """
+import pandas as pd
+import streamlit as st
+import matplotlib.pyplot as plt
+from datetime import datetime
 
-@st.cache_data
-def get_gdp_data():
-    """Grab GDP data from a CSV file.
+# Diccionario de especialidades con sus subespecialidades
+especialidades = {
+    "Examenes Falla Cardiaca": [
+        "Titulación", "Ecocardiograma", "Electrocardiogramas", "Pruebas de esfuerzo"
+    ],
+    "Examenes Gastroenterología": [
+        "CEPRE", "Spyglas", "Cambios de botón", "Videocápsula", "Enteroscopia",
+        "Colonoscopia", "Gastrostomía", "Endoscopia", "Extracción", "Mucosectomía",
+        "Ligaduras", "Dilatación"
+    ],
+    "Examenes Cardio no Invasiva": [
+        "Ecocardiogramas", "Pruebas de esfuerzo", "Ecocardiograma transesofágico",
+        "Ecocardiograma estrés", "Perfusiones ambulatorias y hospitalizadas"
+    ],
+    "Examenes neurofisiología": [
+        "Electromiografías", "Electrococleograma", "Electroencefalograma", "Doppler transcraneal",
+        "Examenes Electrofisiología", "Consulta PV y control", "Revisión de dispositivos", "Holter EKG",
+        "Mesa basculante", "Control de punciones", "Control de bolsillo", "Monitoreo remoto",
+        "Monitoreo electrocardiográfico de eventos"
+    ],
+    "Anestesia": [],
+    "Anticoagulación": [],
+    "Cardiología": [],
+    "Cirugía cardiovascular": [],
+    "Cirugía de Torax": [],
+    "Cirugía Gastrointestinal": [],
+    "Cirugía General": [],
+    "Cirugía Hepatobiliar": [],
+    "Cirugía pediátrica": [],
+    "Cirugía Plástica y Reconstructiva": [],
+    "Clínica de heridas": [],
+    "Dermatología": [],
+    "Dolor y cuidados paliativos": [],
+    "Electrofisiología": [],
+    "Endocrinología": [],
+    "Falla Cardiaca": [],
+    "Fisiatría": [],
+    "Gastroenterología": [],
+    "Genética": [],
+    "Geriatría": [],
+    "Ginecología": [],
+    "Hematología": [],
+    "Hematoncológica": [],
+    "Hemodinamia": [],
+    "Hepatología": [],
+    "Infectología": [],
+    "Medicina Física y Rehabilitación": [],
+    "Medicina Interna": [],
+    "Medicina Nuclear": [],
+    "Nefrología": [],
+    "Neumología": [],
+    "Neurocirugía": [],
+    "Neurología": [],
+    "Neuropsicología": [],
+    "Neuroradiología": [],
+    "Nutrición": [],
+    "Oftalmología": [],
+    "Oncología": [],
+    "Optometría": [],
+    "Ortopedía y Traumatología": [],
+    "Otorrinolaringología": [],
+    "Pediatría": [],
+    "Psicología": [],
+    "Psiquiatría": [],
+    "Radiología": [],
+    "Rehabilitación Cardiaca": [],
+    "Reumatología": [],
+    "Trasplante Hepático": [],
+    "Trasplante Renal": [],
+    "Trasplantes Cardíaco": [],
+    "Trasplantes Pulmonar": [],
+    "Urgencias General": [],
+    "Urología": [],
+    "Vascular Periférico": [],
+    "Clínica de pared abdominal": [],
+    "Neonatología": [],
+    "Cl hepatitis viral": [],
+    "Alergología": [],
+    "Cl hepatocarcinoma": []
+}
 
-    This uses caching to avoid having to read the file every time. If we were
-    reading from an HTTP endpoint instead of a file, it's a good idea to set
-    a maximum age to the cache with the TTL argument: @st.cache_data(ttl='1d')
-    """
+# Función para actualizar las subespecialidades basadas en la selección
+def actualizar_subespecialidades(especialidad):
+    return especialidades.get(especialidad, [])
 
-    # Instead of a CSV on disk, you could read from an HTTP endpoint here too.
-    DATA_FILENAME = Path(__file__).parent/'data/gdp_data.csv'
-    raw_gdp_df = pd.read_csv(DATA_FILENAME)
+# Diccionario de convenios
+convenios = {
+    'Segmento Privado': ['Allianz', 'AXA Colpatria', 'COLMEDICA', 'COLSANITAS', 'COOMEVA MP','ECOPETROL S.A', 'MAPFRE COLOMBIA VIDA SEGUROS', 'MEDISANITAS', 'MEDPLUS MP', 'PAN AMERICAN LIFE', 'PARTICULAR', 'SEG.DE VIDA SURAMERICANA S.A', 'SEGUROS BOLIVAR', 'HDI SEGUROS COLOMBIA S.A', 'MUNCHENER RUCKVERSICHUNGS-GESELLSCHAFT AKTIENGESELLSCHAFT', 'ENNIA CARIBE SCHADE N.V.', 'PRESIDENCIA DE PANAMA', 'SZF STICHTING STAATSZIEKENFOND', 'USA MEDICAL SERVICES IHI BUPA', 'CIGNA INTERNACIONAL'],
+    'POS': ['ALIANSALUD EPS', 'ASMET SALUD', 'SANITAS EPS','ASOCIACION MUTUAL SER', 'AXA COLPATRIA ARL', 'CAJA COPI', 'CAPITAL SALUD', 'COMPENSAR PLAN COMPLEMENTARIO', 'COMPENSAR POS, COOSALUD', 'FAMISANITAR EPS', 'FAMISANITAR PAC', 'MILITAR', 'NUEVA EPS', 'NUEVA EPS S.A PAC', 'NUEVA EPS S.A. REGIMEN SUBSIDIADO', 'POLICIA NACIONAL DIRECCIÓN DE SANIDAD', 'SALUD TOTAL E.P.S', 'SEGUROS BOLIVAR ARL', 'SEGUROS BOLIVAR POLIZA DE ACCIDENTES ESCOLARES', 'SURA EPS', 'UNIVERSIDAD DE NARIÑO', 'UNIVERSIDAD NACIONAL UNISALUD',  'U PEDAGOGICA Y TECNOLOG DE COL', 'FCI SOCIAL', 'FIDEICOMISOS PATRIMONIOS AUTONOMOS FIDUCIARIA', 'SEGUROS DE VIDA SURAMERICANA S.A. ARL', 'FAMISANITAR REGIMEN SUBSIDIADO', 'SALUD TOTAL REGIMEN SUBSIDIADO', 'EPS SURA REGIMEN SUBSIDIADO', 'FCI EMPLEADOS', 'COMPANIA MUNDIAL DE SEGUROS (ACCIDENTES DE TRANSITO)', 'REGIONAL DE ASEGURAMIENTO EN SALUD', 'SALUD TOTAL PAC',  'POSITIVA COMPAÑIA SEGUROS S.A', 'ADMINISTRADORA DE LOS RECURSOS DEL SISTEMA GENERAL DE SEGURIDAD SOCIAL EN SALUD', 'LA PREVISORA (ACCIDENTES DE TRANSITO)', 'SALUD BOLIVAR EPS', 'SEG.DE VIDA DEL ESTADO POL.JUV', 'ESTUDIOS DE INVESTIGACIÓN', 'SEGUROS COMERCIALES BOLIVAR S. (SOAT)', 'SEGUROS DEL ESTADO (SOAT)', 'ASEGURADORA SOLIDARIA COLOMBIA ENTIDAD COOPERATIVA', 'SEG.GENE.SURAMERICANA S.A (SOAT)', 'COLMENA A.R.L', 'DISPENSARIO MEDICO SUROCCIDENTE', 'POSITIVA COMPAÑIA SEGUROS S.A (ACCIDENTES ESCOLARES)','EPS FAMILIAR DE COLOMBIA S.A.S.', 'SEGUROS DE VIDA ALFA S.A. ARL', 'RIEGEL LTDA ASESORES DE SEGUROS', 'HDI SEGUROS COLOMBIA S.A (ACCIDENTES ESCOLARES)', 'FONDO FINANCIERO DISTRITAL DE SALUD', 'ALIANZA MEDELLIN ANTIOQUIA EPS S.A.S', 'AXA SEGUROS COLPATRIA S.A (SOAT)', 'ABBVIE S.A.S.', 'COMPENSAR SUBSIDIADO', 'ORGANIZACION INTERNACIONAL PARA LAS MIGRACIONES OIM', 'ALIANSALUD - REGIMEN SUBSIDIADO', 'SEG.VIDA SURAMERICANA POL JUVE', 'HDI SEGUROS COLOMBIA S.A (SOAT))']
+}
 
-    MIN_YEAR = 1960
-    MAX_YEAR = 2022
+# Interfaz en Streamlit
+st.title('Análisis de Requerimientos Médicos')
 
-    # The data above has columns like:
-    # - Country Name
-    # - Country Code
-    # - [Stuff I don't care about]
-    # - GDP for 1960
-    # - GDP for 1961
-    # - GDP for 1962
-    # - ...
-    # - GDP for 2022
-    #
-    # ...but I want this instead:
-    # - Country Name
-    # - Country Code
-    # - Year
-    # - GDP
-    #
-    # So let's pivot all those year-columns into two: Year and GDP
-    gdp_df = raw_gdp_df.melt(
-        ['Country Code'],
-        [str(x) for x in range(MIN_YEAR, MAX_YEAR + 1)],
-        'Year',
-        'GDP',
-    )
+# Paso 1: Subir archivo Excel
+uploaded_file = st.file_uploader("Sube tu archivo Excel", type=["xlsx"])
 
-    # Convert years from string to integers
-    gdp_df['Year'] = pd.to_numeric(gdp_df['Year'])
+if uploaded_file:
+    # Leer el archivo
+    df = pd.read_excel(uploaded_file)
 
-    return gdp_df
+    # Limpiar los nombres de las columnas
+    df.columns = df.columns.str.strip()
 
-gdp_df = get_gdp_data()
+    # Paso 2: Seleccionar rango de fechas
+    fecha_inicio = st.date_input("Fecha de inicio", datetime.today())
+    fecha_fin = st.date_input("Fecha de fin", datetime.today())
 
-# -----------------------------------------------------------------------------
-# Draw the actual page
+    # Filtrar los datos por el rango de fechas
+    df['Fecha creación'] = pd.to_datetime(df['Fecha creación'])
+    df_filtrado = df[(df['Fecha creación'] >= pd.to_datetime(fecha_inicio)) & (df['Fecha creación'] <= pd.to_datetime(fecha_fin))]
 
-# Set the title that appears at the top of the page.
-'''
-# :earth_americas: GDP dashboard
+    # Paso 3: Seleccionar el Convenio
+    convenio_seleccionado = st.radio("Selecciona el tipo de convenio", ['Ambos', 'Segmento Privado', 'POS'])
 
-Browse GDP data from the [World Bank Open Data](https://data.worldbank.org/) website. As you'll
-notice, the data only goes to 2022 right now, and datapoints for certain years are often missing.
-But it's otherwise a great (and did I mention _free_?) source of data.
-'''
+    if convenio_seleccionado != 'Ambos':
+        df_filtrado_convenio = df_filtrado[df_filtrado['Convenio.'].isin(convenios[convenio_seleccionado])]
+    else:
+        df_filtrado_convenio = df_filtrado
 
-# Add some spacing
-''
-''
+    # Mostrar los datos filtrados por convenio
+    st.write(f"Datos filtrados para el convenio '{convenio_seleccionado}':", df_filtrado_convenio)
 
-min_value = gdp_df['Year'].min()
-max_value = gdp_df['Year'].max()
+    # Paso 4: Ingresar Servicio Afectado
+    servicio_buscado = st.text_input("Introduce el nombre del Servicio Afectado a visualizar")
 
-from_year, to_year = st.slider(
-    'Which years are you interested in?',
-    min_value=min_value,
-    max_value=max_value,
-    value=[min_value, max_value])
+    # Paso 5: Seleccionar especialidad
+    especialidad = st.selectbox("Selecciona una especialidad", list(especialidades.keys()))
 
-countries = gdp_df['Country Code'].unique()
+    # Obtener subespecialidades
+    subespecialidades = actualizar_subespecialidades(especialidad)
+    subespecialidad = st.selectbox("Selecciona una subespecialidad", subespecialidades)
 
-if not len(countries):
-    st.warning("Select at least one country")
+    # Filtrar por especialidad
+    df_filtrado_convenio['Especialidad (Por tipo de solicitud Cita)'] = df_filtrado_convenio['Especialidad (Por tipo de solicitud Cita)'].fillna('')
+    df_especialidad = df_filtrado_convenio[df_filtrado_convenio['Especialidad (Por tipo de solicitud Cita)'].str.contains(especialidad, case=False)]
 
-selected_countries = st.multiselect(
-    'Which countries would you like to view?',
-    countries,
-    ['DEU', 'FRA', 'GBR', 'BRA', 'MEX', 'JPN'])
+    # Paso 6: Mostrar solo las Peticiones para la especialidad seleccionada
+    peticiones = df_especialidad[df_especialidad['Tipo de requerimiento'] == "Petición"]
 
-''
-''
-''
+    # Mostrar las peticiones en una tabla
+    st.subheader(f'Peticiones para la especialidad "{especialidad}"')
+    st.dataframe(peticiones)
 
-# Filter the data
-filtered_gdp_df = gdp_df[
-    (gdp_df['Country Code'].isin(selected_countries))
-    & (gdp_df['Year'] <= to_year)
-    & (from_year <= gdp_df['Year'])
-]
+    # Paso 7: Filtrar solo el Servicio Afectado escrito
+    if servicio_buscado:
+        df_servicio = df_filtrado_convenio[df_filtrado_convenio['Servicio afectado'].str.contains(servicio_buscado, case=False)]
 
-st.header('GDP over time', divider='gray')
+        # Relacionar el Servicio Afectado con el Personal Implicado para las Quejas y Felicitaciones
+        servicio_personal_relacionado = df_servicio[['Servicio afectado', 'Personal implicado', 'Tipo de requerimiento']]
 
-''
+        # Mostrar las relaciones en una tabla
+        st.subheader(f'Relación de Servicio Afectado con Personal Implicado para el servicio "{servicio_buscado}"')
+        st.dataframe(servicio_personal_relacionado)
 
-st.line_chart(
-    filtered_gdp_df,
-    x='Year',
-    y='GDP',
-    color='Country Code',
-)
+        # Paso 8: Contar las Quejas con "DÉFICIT DE PROCESO" y "INSATISFACCIÓN"
+        df_quejas = df_servicio[df_servicio['Tipo de requerimiento'] == "Queja"]
 
-''
-''
+        # Filtrar las quejas que están "Solucionadas"
+        df_quejas_solucionadas = df_quejas[df_quejas['Estado'] == "Solucionado"]
 
+        # Verificar si la columna 'clasificación Queja' está presente
+        if 'clasificación Queja' in df_quejas_solucionadas.columns:
+            # Limpiar los valores en la columna "clasificación Queja" (convertir a mayúsculas y eliminar espacios extra)
+            df_quejas_solucionadas['clasificación Queja'] = df_quejas_solucionadas['clasificación Queja'].str.strip().str.upper()
 
-first_year = gdp_df[gdp_df['Year'] == from_year]
-last_year = gdp_df[gdp_df['Year'] == to_year]
+            # Inspeccionar los valores únicos en 'clasificación Queja' para verificar las categorías
+            st.write("Valores únicos en 'clasificación Queja':")
+            st.write(df_quejas_solucionadas['clasificación Queja'].unique())
 
-st.header(f'GDP in {to_year}', divider='gray')
+            # Contar "DÉFICIT DE PROCESO" e "INSATISFACCIÓN" en la clasificación de la queja
+            df_deficit = df_quejas_solucionadas[df_quejas_solucionadas['clasificación Queja'].str.contains("DÉFICIT DE PROCESO", case=False)]
+            df_insatisfaccion = df_quejas_solucionadas[df_quejas_solucionadas['clasificación Queja'].str.contains("INSATISFACCIÓN", case=False)]
 
-''
+            # Contar las quejas
+            deficit_proceso = df_deficit.shape[0]
+            insatisfaccion = df_insatisfaccion.shape[0]
 
-cols = st.columns(4)
-
-for i, country in enumerate(selected_countries):
-    col = cols[i % len(cols)]
-
-    with col:
-        first_gdp = first_year[first_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-        last_gdp = last_year[last_year['Country Code'] == country]['GDP'].iat[0] / 1000000000
-
-        if math.isnan(first_gdp):
-            growth = 'n/a'
-            delta_color = 'off'
+            # Mostrar los resultados
+            st.write(f"Cantidad de DÉFICIT DE PROCESO para el servicio '{servicio_buscado}': {deficit_proceso}")
+            st.write(f"Cantidad de INSATISFACCIÓN para el servicio '{servicio_buscado}': {insatisfaccion}")
         else:
-            growth = f'{last_gdp / first_gdp:,.2f}x'
-            delta_color = 'normal'
+            st.write("La columna 'clasificación Queja' no se encuentra en los datos.")
 
-        st.metric(
-            label=f'{country} GDP',
-            value=f'{last_gdp:,.0f}B',
-            delta=growth,
-            delta_color=delta_color
-        )
+        # Paso 9: Mostrar un gráfico de barras solo para los tipos de requerimiento del servicio afectado
+        requerimientos = ['Queja', 'Petición', 'Reclamo', 'Sugerencia', 'Felicitación']
+        counts = [df_servicio[df_servicio['Tipo de requerimiento'] == req].shape[0] for req in requerimientos]
+
+        # Crear gráfico de barras
+        fig, ax = plt.subplots()
+        bars = ax.bar(requerimientos, counts, color=['red', 'blue', 'orange', 'green', 'purple'])
+        ax.set_xlabel('Tipo de Requerimiento')
+        ax.set_ylabel('Cantidad')
+        ax.set_title(f'Conteo de Requerimientos para el servicio "{servicio_buscado}"')
+
+        # Agregar los valores numéricos sobre las barras
+        for bar in bars:
+            yval = bar.get_height()
+            ax.text(bar.get_x() + bar.get_width()/2, yval + 0.5, int(yval), ha='center', va='bottom', fontsize=10)
+
+        st.pyplot(fig)
+
+    # Paso 10: Mostrar el top 5 de Quejas
+    top_quejas = df_filtrado_convenio[df_filtrado_convenio['Tipo de requerimiento'] == "Queja"]['Servicio afectado'].value_counts().head(5)
+    st.subheader('Top 5 Quejas por Servicio Afectado')
+    st.dataframe(top_quejas)
+
+    # Paso 11: Mostrar el top 5 de Felicitaciones
+    top_felicitaciones = df_filtrado_convenio[df_filtrado_convenio['Tipo de requerimiento'] == "Felicitación"]['Servicio afectado'].value_counts().head(5)
+    st.subheader('Top 5 Felicitaciones por Servicio Afectado')
+    st.dataframe(top_felicitaciones)
+"""
+
+# Guardar el archivo app.py
+with open("/content/app.py", "w") as file:
+    file.write(app_code)
+
+# Abrir un túnel ngrok para exponer el puerto 8501
+public_url = ngrok.connect(8501)
+print(f"Tu app Streamlit está disponible en: {public_url}")
+
+# Iniciar la aplicación Streamlit sin usar el ampersand (&) para ejecutarlo en primer plano
+!nohup streamlit run /content/app.py --server.port 8501 &
